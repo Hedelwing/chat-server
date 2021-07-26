@@ -9,8 +9,7 @@ var _apolloServerExpress = require("apollo-server-express");
 
 var _default = (0, _apolloServerExpress.gql)`
   extend type Query {
-    getMessages(chatId: ID!, limit: Int = 12): [Message] @auth @haveAccess
-    getMoreMessages(chatId: ID!, lastMessage: ID!, limit: Int = 12): [Message]
+    getMessages(chatId: ID!, limit: Int = 12, fromMessage: ID): [Message] @auth @haveAccess
   }
   extend type Mutation {
     sendMessage(chatId: ID!, body: String!): Message @auth @haveAccess
@@ -20,7 +19,7 @@ var _default = (0, _apolloServerExpress.gql)`
   extend type Subscription {
     messageObserver(
       chatId: ID!
-      types: [SubscriptionType] = [ADD, CHANGE, DELETE]
+      types: [SubscriptionType] = [ADD, UPDATE, DELETE]
     ): MessageSubscriptions @auth @haveAccess
   }
   type Message {

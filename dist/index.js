@@ -30,7 +30,7 @@ const start = async () => {
     const app = (0, _express.default)();
     app.disable('x-powered-by');
     const corsOptions = {
-      origin: "http://localhost:8080",
+      origin: ["http://localhost:8080", "http://localhost:5000"],
       credentials: true
     };
     const server = new _apolloServerExpress.ApolloServer({

@@ -1,10 +1,5 @@
 import mongoose from 'mongoose'
 import express from 'express'
-import { ApolloServer } from 'apollo-server-express'
-import typeDefs from './typeDefs'
-import resolvers from './resolvers'
-import schemaDirectives from './directives'
-import http from 'http'
 import {
     PORT,
     DB_USER,
@@ -12,7 +7,13 @@ import {
     DB_HOST,
     DB_NAME,
 } from './config'
+import { ApolloServer } from 'apollo-server-express'
+import http from 'http'
+import typeDefs from './typeDefs'
+import resolvers from './resolvers'
+import schemaDirectives from './directives'
 import { validateToken } from './utils/auth'
+import { User } from "./models"
 
 const start = async () => {
     try {
@@ -42,9 +43,18 @@ const start = async () => {
             context: async ({ req, connection }) =>
                 connection ? connection.context : { user: await validateToken(req?.headers.authorization.split(' ')[1]) },
             subscriptions: {
-                onConnect: async (connectionParams) => ({
-                    user: await validateToken(connectionParams.token)
-                })
+                onConnect: async ({ token }: { token: string }) => {
+                    const user = await validateToken(token)
+
+                    if (user) await User.updateOne({ _id: user }, { isOnline: true })
+
+                    return { user }
+                },
+                onDisconnect: async (_, context) => {
+                    const { user } = await context.initPromise
+
+                    await User.updateOne({ _id: user }, { isOnline: false })
+                }
             }
         })
 

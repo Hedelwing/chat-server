@@ -2,27 +2,27 @@ import { gql } from 'apollo-server-express'
 
 export default gql`
   extend type Query {
-    getMessages(chatId: ID!, limit: Int = 12): [Message] @auth @haveAccess
-    getMoreMessages(chatId: ID!, lastMessage: ID!, limit: Int = 12): [Message]
+    getMessages(chatId: ID!, limit: Int = 12, fromMessage: ID): [Message] @auth
   }
   extend type Mutation {
-    sendMessage(chatId: ID!, body: String!): Message @auth @haveAccess
+    sendMessage(chatId: ID!, body: String!): Message @auth
     deleteMessage(id: ID!): Message @auth
     updateMessage(id: ID!, body: String!): Message @auth
+    markAsRead(messageId: ID!): Boolean @auth
   }
   extend type Subscription {
     messageObserver(
-      chatId: ID!
-      types: [SubscriptionType] = [ADD, CHANGE, DELETE]
-    ): MessageSubscriptions @auth @haveAccess
+      types: [SubscriptionType] = [ADD, UPDATE, DELETE]
+    ): MessageSubscriptions @auth
   }
   type Message {
     id: ID!
     body: String!
-    chatId: ID!
+    chatId: ID
     sender: User!
     createdAt: String!
     updatedAt: String!
+    isViewed: Boolean!
   }
 
   type MessageSubscriptions {

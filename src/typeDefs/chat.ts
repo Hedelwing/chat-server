@@ -6,18 +6,17 @@ extend type Query {
   chats: [Chat] @auth
 }
   extend type Mutation {
-    createChat(title: String!, description: String): Chat @auth
+    createChat(title: String!, members: [ID!]!): Chat @auth
+    leaveChat(chatId: ID!): ID! @auth
+    addInChat(chatId: ID!, members: [ID!]): Chat @auth
   }
   type Chat {
     id: ID!
     owner: User!
     title: String!
     lastMessage: Message
-    access: ChatAccess
-    description: String
-  }
-
-  type ChatAccess {
-    blackList: [User]
+    members: [User]
+    messages(limit: Int = 12, fromMessage: ID): [Message]
+    newMessages: Int!
   }
 `

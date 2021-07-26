@@ -11,9 +11,7 @@ var _chat = _interopRequireDefault(require("./chat"));
 
 var _message = _interopRequireDefault(require("./message"));
 
-var _root = _interopRequireDefault(require("./root"));
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var _default = [_root.default, _user.default, _chat.default, _message.default];
+var _default = [_user.default, _chat.default, _message.default];
 exports.default = _default;

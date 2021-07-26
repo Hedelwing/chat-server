@@ -16,8 +16,6 @@ var _default = (0, _apolloServerExpress.gql)`
   }
   type Mutation {
     _: String
-    uploadFile(file: Upload!): Boolean!
-    deleteFile(deletefile: String!): Boolean!
   }
   type Subscription {
     _: String
@@ -25,7 +23,7 @@ var _default = (0, _apolloServerExpress.gql)`
 
   enum SubscriptionType {
     ADD
-    CHANGE
+    UPDATE
     DELETE
   } 
 `;

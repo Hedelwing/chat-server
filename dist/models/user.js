@@ -37,16 +37,7 @@ const userSchema = new _mongoose.Schema({
       message: () => `Email уже используется`
     }]
   },
-  birthday: Object,
-  about: {
-    type: String,
-    maxlength: [500, "Текст слишком длинный"]
-  },
-  chats: [{
-    type: _mongoose.Schema.Types.ObjectId,
-    ref: 'Chat'
-  }],
-  isOnline: Boolean
+  avatar: String
 }, {
   timestamps: true
 });

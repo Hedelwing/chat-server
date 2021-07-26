@@ -1,7 +1,16 @@
-import { Schema, model } from 'mongoose'
+import { Schema, model, Document, Model } from 'mongoose'
 import { hash, compare } from 'bcrypt'
 
-const userSchema = new Schema({
+interface UserDocument extends Document {
+    nickname: string
+    password: string
+    email: string
+    avatar: string
+    isOnline: boolean
+    chats: [typeof Schema.Types.ObjectId]
+}
+
+const userSchema = new Schema<UserDocument, Model<UserDocument>, UserDocument>({
     nickname: {
         type: String,
         required: [true, "Обязательное поле"],
@@ -27,18 +36,12 @@ const userSchema = new Schema({
             message: () => `Email уже используется`
         }]
     },
-    birthday: Object,
-    about: {
-        type: String,
-        maxlength: [500, "Текст слишком длинный"]
-    },
-    chats: [
-        {
-            type: Schema.Types.ObjectId,
-            ref: 'Chat'
-        }
-    ],
-    isOnline: Boolean,
+    avatar: { type: String, default: "https://res.cloudinary.com/dlajqlyky/image/upload/v1627144864/avatar-1577909_1280_zyjtyw.png" },
+    isOnline: { type: Boolean, default: false },
+    chats: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Chat'
+    }]
 }, {
     timestamps: true,
 })
@@ -56,6 +59,6 @@ userSchema.methods.matchesPassword = function (password) {
     return compare(password, this.password)
 }
 
-const User = model('User', userSchema)
+const User = model<UserDocument>('User', userSchema)
 
 export default User
