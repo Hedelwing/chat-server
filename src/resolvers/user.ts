@@ -1,9 +1,11 @@
 import { User } from '../models'
 import { signIn } from '../utils/auth'
 import { setTokens } from '../utils/auth'
-import { ApolloError } from 'apollo-server-errors'
 import cloudinary from 'cloudinary'
 import Friendship from '../models/friendship'
+import { IResolvers } from 'apollo-server-express'
+import uploadImage from '../utils/uploadFile'
+import { UserDocument } from '../types'
 
 cloudinary.v2.config({
     cloud_name: 'dlajqlyky',
@@ -11,11 +13,11 @@ cloudinary.v2.config({
     api_secret: 'nEt1XseNpTuUTCORdlDYFfvCIoU'
 })
 
-export default {
+const UserResolve: IResolvers = {
     Query: {
-        me: (_, __, { user }) => User.findById(user),
-        user: (_, { id }) => User.findById(id),
-        users: (_, { searched }, { user }) => {
+        me: (_, __, { user }: { user: string }) => User.findById(user),
+        user: (_, { id }: { id: string }) => User.findById(id),
+        users: (_, { searched }: { searched: string }, { user }: { user: string }) => {
             const condition = searched
                 ? {
                     '$or': [
@@ -33,43 +35,34 @@ export default {
         },
     },
     Mutation: {
-        signUp: (_, args) => User.create(args).then(user => setTokens(user)),
-        signIn: (_, args) => signIn(args).then(user => setTokens(user)),
-        signOut: async (_, __, { user }) => {
+        signUp: (_, args: any) => User.create(args).then((user) => setTokens(user.id)),
+        signIn: (_, args: any) => signIn(args).then(user => setTokens(user.id)),
+        signOut: async (_, __, { user }: { user: string }) => {
             await User.updateOne({ _id: user }, { isOnline: false })
 
             return true
         },
-        uploadAvatar: async (_, { file }, { user }) => {
-            const { createReadStream } = await file
+        uploadAvatar: async (_, { file }: any, { user }: { user: string }) => {
+            const result = await uploadImage(file, {
+                public_id: user,
+                eager: { width: 200, height: 200, crop: "fill" }
+            })
 
-            const result: cloudinary.UploadApiResponse = await new Promise((res, rej) =>
-                createReadStream()
-                    .pipe(cloudinary.v2.uploader.upload_stream(
-                        {
-                            tags: "avatar",
-                            public_id: user,
-                            allowed_formats: ["png", "jpg", "webp"],
-                            format: "jpg",
-                            eager: { width: 200, height: 200, crop: "fill" }
-                        },
-                        (error, result) => {
-                            if (error) throw new ApolloError("Не удалось загрузить изображение")
-
-                            res(result)
-                        }
-                    ))
-            )
-
-            await User.findByIdAndUpdate(user, { avatar: result?.eager[0]?.secure_url })
+            await User.findByIdAndUpdate(user, { avatar: result.eager[0].secure_url })
 
             return true
         },
     },
     User: {
-        areFriends: ({ _id }, __, { user }) => Friendship.areFriends(_id, user),
-        isMe: ({ _id }, __, { user }) => _id === user,
-        areRequesterFriendship: ({ _id }, __, { user }) => Friendship.arePendingFriendship(_id, user),
-        areRequestedFriendship: ({ _id }, __, { user }) => Friendship.arePendingFriendship(user, _id),
+        areFriends: ({ _id }: UserDocument, __, { user }: { user: string }) =>
+            Friendship.areFriends(_id, user),
+        isMe: ({ _id }: UserDocument, __, { user }: { user: string }) =>
+            _id === user,
+        areRequesterFriendship: ({ _id }: UserDocument, __, { user }: { user: string }) =>
+            Friendship.arePendingFriendship(_id, user),
+        areRequestedFriendship: ({ _id }: UserDocument, __, { user }: { user: string }) =>
+            Friendship.arePendingFriendship(user, _id),
     }
 }
+
+export default UserResolve

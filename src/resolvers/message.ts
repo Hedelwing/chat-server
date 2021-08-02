@@ -1,7 +1,7 @@
 import { Chat, Message } from '../models'
-import { PubSub, ApolloError } from 'apollo-server-express'
+import { PubSub, ApolloError, IResolvers, UserInputError } from 'apollo-server-express'
 import { withFilter } from 'graphql-subscriptions'
-import message from '../typeDefs/message'
+import { UserDocument, MessageDocument } from '../types'
 
 const pubsub = new PubSub()
 
@@ -11,42 +11,40 @@ const MESSAGE_SUBSCRIPTIONS = {
   DELETE: 'MESSAGE_DELETED'
 }
 
-const userIsSender = async (messageId, user) => {
-  const isSender = (await Message.findById(messageId)).sender == user
-
-  if (!isSender)
-    throw new ApolloError("У вас нет прав для удаления/редактирования данного сообщения")
-}
-
-export default {
+const MessageResolve: IResolvers = {
   Query: {
-    getMessages: async (root, { chatId, limit, fromMessage }, { user }) => {
-      const { members } = await Chat.findById(chatId)
+    getMessages: async (
+      root,
+      { chatId, limit, fromMessage }:
+        { chatId: string, limit: number, fromMessage: string },
+      { user }: { user: string }
+    ) => {
+      const chat = (await Chat.findChat({ _id: chatId }))
+        .userInMembers(user)
 
-      if (!members.includes(user)) throw new ApolloError("Вы не состоите в данном чате")
-
-      const getOffset = () =>
-        Message.find({ chatId })
+      const getOffset = async () => {
+        const messages = await Message.find({ chatId })
           .sort({ createdAt: -1 })
-          .then(messages => {
-            const idx = messages.findIndex(message => message._id == fromMessage)
 
-            if (idx === -1) throw new ApolloError("")
+        const idx = messages.findIndex((message: MessageDocument) => message._id.toString() === fromMessage)
 
-            return idx + 1
-          })
+        if (idx === -1) throw new ApolloError("")
+
+        return idx + 1
+      }
 
       const offset = fromMessage ? await getOffset() : 0
 
-      return Message.find({ chatId })
+      const messages = await Message.find({ chatId })
         .sort({ createdAt: -1 })
         .limit(limit)
         .skip(offset)
-        .then(data => data.sort((a, b) => +a.createdAt - +b.createdAt))
+
+      return messages.sort((a, b) => Number(a.createdAt) - Number(b.createdAt))
     },
   },
   Mutation: {
-    sendMessage: async (root, args, { user }, info) => {
+    sendMessage: async (root, args: any, { user }: { user: string }) => {
       const message = await Message.create({
         ...args,
         sender: user,
@@ -57,49 +55,71 @@ export default {
 
       return message
     },
-    deleteMessage: async (root, { id }, { user }) => {
-      await userIsSender(id, user)
+    deleteMessage: async (root, { id }: { id: string }, { user }: { user: string }) => {
+      const message = (await Message.findMessage({ _id: id }))
+        .haveSenderAllow(user)
 
-      const message = await Message.findByIdAndDelete(id)
+      await Message.deleteOne({ _id: id })
 
       pubsub.publish(MESSAGE_SUBSCRIPTIONS.DELETE, { type: 'DELETE', message })
 
       return message
     },
-    updateMessage: async (root, { id, body }, { user }) => {
-      await userIsSender(id, user)
+    updateMessage: async (
+      root,
+      { id, body }:
+        { id: string, body: string },
+      { user }: { user: string }
+    ) => {
+      const message = (await Message.findMessage({ _id: id })).haveSenderAllow(user)
 
-      const message = await Message.findByIdAndUpdate(id, { body }, { new: true })
+      const updatedMessage = await Message.findByIdAndUpdate(id, { body }, { new: true })
 
       pubsub.publish(MESSAGE_SUBSCRIPTIONS.UPDATE, { type: 'UPDATE', message })
 
-      return message
+      return updatedMessage
     },
-    markAsRead: async (root, { messageId }, { user }) => {
+    markAsRead: async (
+      root,
+      { messageId }: { messageId: string },
+      { user }: { user: string }
+    ) => {
       await Message.updateOne({ _id: messageId }, { $push: { viewedBy: user } })
 
       return true
     }
   },
   Message: {
-    sender: async message =>
+    sender: async (message: MessageDocument) =>
       (await message.populate('sender').execPopulate()).sender,
-    isViewed: ({ viewedBy }, _, { user }) => viewedBy.includes(user)
+    isViewed: (
+      { viewedBy }: MessageDocument,
+      _,
+      { user }: { user: string }
+    ) => viewedBy.includes(user)
   },
   Subscription: {
     messageObserver: {
       resolve: (payload) => payload,
-      subscribe: withFilter(
-        (root, { types }) => {
-          const subscriptions = types.map(type => MESSAGE_SUBSCRIPTIONS[type])
+      subscribe: withFilter((
+        root,
+        { types }: { types: (keyof typeof MESSAGE_SUBSCRIPTIONS)[] }
+      ) => {
+        const subscriptions = types.map(type => MESSAGE_SUBSCRIPTIONS[type])
 
-          return pubsub.asyncIterator(subscriptions)
-        },
-        async ({ message }, _, { user }) => {
-          const isMember = (await Chat.findById(message.chatId))
-            .members.some(member => member == user)
+        return pubsub.asyncIterator(subscriptions)
+      },
+        async (
+          { message }: { message: MessageDocument },
+          _,
+          { user }: { user: string }
+        ) => {
+          const { members } = await Chat.findChat({ _id: message.chatId })
+          const isMember = members.some(member => member.toString() === user)
 
-          const notSender = (await message.populate('sender').execPopulate()).sender.id !== user
+          const { sender } = await message.populate('sender').execPopulate()
+
+          const notSender = sender.id.toString() !== user
 
           return isMember && notSender
         }
@@ -107,3 +127,5 @@ export default {
     }
   }
 }
+
+export default MessageResolve

@@ -6,10 +6,10 @@ interface UserPayload extends JwtPayload {
   id: string;
 }
 
-export const signIn = async ({ email, password }) => {
+export const signIn = async ({ email, password }: { email: string, password: string }) => {
   const message = 'Неверный email или пароль'
 
-  const user = await User.findOne({ email })
+  const user = await User.findOne({ email: RegExp(email, 'i') })
 
   if (!user || !await user.matchesPassword(password)) {
     throw new AuthenticationError(message)
@@ -41,11 +41,11 @@ export function validateAccessToken(token: string): UserPayload | null {
   }
 }
 
-export const setTokens = ({ id }: { id: string }) =>
+export const setTokens = (id: string) =>
   sign({ id }, secret, { expiresIn: '1d' })
 
 export async function validateToken(accessToken: string): Promise<string | null> {
-  const userId = accessToken && validateAccessToken(accessToken)?.id
+  const user = accessToken && validateAccessToken(accessToken)
 
-  return userId && await User.findById(userId) ? userId : null
+  return user && user.id && await User.findById(user.id) ? user.id : null
 }

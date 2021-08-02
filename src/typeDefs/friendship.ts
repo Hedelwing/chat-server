@@ -9,9 +9,9 @@ export default gql`
 
     extend type Mutation {
         sendFriendshipRequest(requested: ID!): FriendRequest!
-        acceptFriendship(request: ID!): FriendRequest!
-        denyFriendship(request: ID!): FriendRequest!
-        cancelFriendship(friend: [ID]): [ID]
+        acceptFriendship(requester: ID!): FriendRequest!
+        denyFriendship(requester: ID!): FriendRequest!
+        cancelFriendship(friends: [ID]): [ID]
     }
 
     type FriendRequest {

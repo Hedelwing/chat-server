@@ -1,12 +1,7 @@
-import { Schema, model, Document } from 'mongoose'
+import { Schema, model } from 'mongoose'
+import { ChatDocument, ChatModel } from '../types'
 
-interface ChatDocument extends Document {
-    title: string
-    owner: typeof Schema.Types.ObjectId
-    members: [Document['_id']]
-}
-
-const chatSchema = new Schema<ChatDocument>({
+const chatSchema = new Schema<ChatDocument, ChatModel, any>({
     title: {
         type: String,
         required: [true, "Необходимо ввести заголовок чата"]
@@ -24,7 +19,20 @@ const chatSchema = new Schema<ChatDocument>({
     timestamps: true,
 })
 
-const Chat = model<ChatDocument>('Chat', chatSchema)
+chatSchema.statics.findChat = async function (conditions: { [key: string]: any }) {
+    const chat = await this.findOne(conditions)
 
+    if (!chat) throw new Error("Чат не найден")
+
+    return chat
+}
+
+chatSchema.methods.userInMembers = function (user: string) {
+    if (!this.members.includes(user)) throw new Error("Вы не состоите в данном чате")
+
+    return this
+}
+
+const Chat = model<ChatDocument, ChatModel>('Chat', chatSchema)
 
 export default Chat

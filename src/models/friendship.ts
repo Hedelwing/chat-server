@@ -1,25 +1,7 @@
-import { Schema, model, Model, Query, Document } from 'mongoose'
+import { Schema, model, Model } from 'mongoose'
+import { FriendshipDocument, FriendshipModel, ID } from '../types';
 
-type ID = typeof Schema.Types.ObjectId
-
-interface FriendshipDocument extends Document {
-    requester: ID
-    requested: ID
-    status: string
-}
-
-interface FriendshipModel extends Model<FriendshipDocument> {
-    acceptFriendship: (request: ID) => Query<any, FriendshipDocument>
-    denyFriendship: (request: ID) => Query<any, FriendshipDocument>
-    getFriends: (user: ID) => Promise<ID[]>
-    getReceivedRequests: (requested: ID) => Query<any, FriendshipDocument>
-    getSentRequests: (requester: ID) => Query<any, FriendshipDocument>
-    areFriends: (user1: ID, user2: ID) => Promise<boolean>
-    arePendingFriendship: (requester: ID, requested: ID) => Promise<boolean>
-    cancelFriendship: (user: ID, friend: ID[]) => Promise<ID[]>
-}
-
-const friendshipSchema = new Schema<FriendshipDocument, Model<FriendshipDocument>, FriendshipDocument>({
+const friendshipSchema = new Schema<FriendshipDocument, FriendshipModel>({
     requester: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     requested: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     status: { type: String, default: 'Pending' }
@@ -48,16 +30,21 @@ friendshipSchema.statics.getReceivedRequests = function (requested: ID) {
     return this.find({ requested, status: 'Pending' })
 }
 
-friendshipSchema.statics.acceptFriendship = function (request: ID) {
-    return this.findByIdAndUpdate(request, { status: 'Accepted' }).then(friendship => {
+friendshipSchema.statics.acceptFriendship = function (requester: ID) {
+    return this.findOneAndUpdate({ requester }, { status: 'Accepted' }).then(friendship => {
         if (!friendship) throw new Error('Запрос не существует')
 
         return friendship
     })
 }
 
-friendshipSchema.statics.denyFriendship = function (request: ID) {
-    return this.findByIdAndDelete(request)
+friendshipSchema.statics.denyFriendship = function (requester: ID) {
+    return this.findOneAndDelete({ requester }).then(friendship => {
+        if (!friendship) throw new Error('Запрос не существует')
+
+        return friendship
+
+    })
 }
 
 friendshipSchema.statics.cancelFriendship = async function (user: ID, friend: ID[]) {

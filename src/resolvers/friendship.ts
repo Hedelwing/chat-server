@@ -1,29 +1,33 @@
+import { IResolvers } from 'apollo-server-express'
 import { User } from '../models'
 import Friendship from '../models/friendship'
+import { FriendshipDocument } from '../types'
 
-export default {
+const FriendshipResolve: IResolvers = {
     Query: {
-        friends: async (_, __, { user }) => {
+        friends: async (_, __, { user }: { user: string }) => {
             const friends = await Friendship.getFriends(user)
 
             return User.find({ _id: { '$in': friends } })
         },
-        receivedRequests: (_, __, { user }) =>
+        receivedRequests: (_, __, { user }: { user: string }) =>
             Friendship.getReceivedRequests(user).populate('requester'),
-        sentRequests: (_, __, { user }) => Friendship.getSentRequests(user).populate('requested')
+        sentRequests: (_, __, { user }: { user: string }) => Friendship.getSentRequests(user).populate('requested')
     },
     Mutation: {
-        sendFriendshipRequest: (_, { requested }, { user }) =>
+        sendFriendshipRequest: (_, { requested }: { requested: string }, { user }: { user: string }) =>
             Friendship.create({ requester: user, requested }),
-        acceptFriendship: (_, { request }) =>
-            Friendship.acceptFriendship(request),
-        denyFriendship: (_, { request }) => Friendship.denyFriendship(request),
-        cancelFriendship: (_, { friend }, { user }) => Friendship.cancelFriendship(friend, user),
+        acceptFriendship: (_, { requester }: { requester: string }) =>
+            Friendship.acceptFriendship(requester),
+        denyFriendship: (_, { requester }: { requester: string }) => Friendship.denyFriendship(requester),
+        cancelFriendship: (_, { friends }: { friends: string[] }, { user }: { user: string }) => Friendship.cancelFriendship(user, friends),
     },
     FriendRequest: {
-        requester: async request =>
-          (await request.populate('requester').execPopulate()).requester,
-        requested: async request =>
-          (await request.populate('requested').execPopulate()).requested
-      },
+        requester: async (request: FriendshipDocument) =>
+            (await request.populate('requester').execPopulate()).requester,
+        requested: async (request: FriendshipDocument) =>
+            (await request.populate('requested').execPopulate()).requested
+    },
 }
+
+export default FriendshipResolve

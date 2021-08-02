@@ -1,10 +1,10 @@
 import { Chat, Message, User } from '../models'
-import { ApolloError, UserInputError } from 'apollo-server-express'
+import { ApolloError, IResolvers, UserInputError } from 'apollo-server-express'
 
 const chatDoesntExist = "Такого чата не существует"
 const mustBeMember = "Вы должны быть участником этого чата"
 
-export default {
+const ChatResolve: IResolvers = {
   Query: {
     chat: (root, { chatId }) => Chat.findById(chatId),
 
@@ -69,3 +69,5 @@ export default {
     newMessages: (chat, _, { user }) => Message.countDocuments({ chatId: chat._id, viewedBy: { '$ne': user } })
   }
 }
+
+export default ChatResolve

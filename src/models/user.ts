@@ -1,14 +1,6 @@
 import { Schema, model, Document, Model } from 'mongoose'
 import { hash, compare } from 'bcrypt'
-
-interface UserDocument extends Document {
-    nickname: string
-    password: string
-    email: string
-    avatar: string
-    isOnline: boolean
-    chats: [typeof Schema.Types.ObjectId]
-}
+import { ChatDocument, UserDocument } from '../types'
 
 const userSchema = new Schema<UserDocument, Model<UserDocument>, UserDocument>({
     nickname: {
@@ -21,7 +13,7 @@ const userSchema = new Schema<UserDocument, Model<UserDocument>, UserDocument>({
         type: String,
         required: [true, "Обязательное поле"],
         validate: {
-            validator: pass => /(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).{6,}/g.test(pass),
+            validator: (pass: string) => /(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z]).{6,}/g.test(pass),
             message: () => `Пароль должен содержать число, буквы верхнего и нижнего регистра`
         }
     },
@@ -29,15 +21,17 @@ const userSchema = new Schema<UserDocument, Model<UserDocument>, UserDocument>({
         type: String,
         required: [true, "Обязательное поле"],
         validate: [{
-            validator: (email) => /.@.+\../.test(email),
+            validator: (email: string) => /.@.+\../.test(email),
             message: props => `${props.value} некорректен`
         }, {
-            validator: (email) => User.doesntExist({ email }),
+            validator: async (email: string): Promise<boolean> =>
+                !(await User.exists({ email })),
             message: () => `Email уже используется`
         }]
     },
     avatar: { type: String, default: "https://res.cloudinary.com/dlajqlyky/image/upload/v1627144864/avatar-1577909_1280_zyjtyw.png" },
     isOnline: { type: Boolean, default: false },
+    // @ts-ignore 
     chats: [{
         type: Schema.Types.ObjectId,
         ref: 'Chat'
@@ -51,14 +45,10 @@ userSchema.pre('save', async function () {
         this.password = await hash(this.password, 10)
 })
 
-userSchema.statics.doesntExist = async function (options) {
-    return await this.where(options).countDocuments() === 0
-}
-
-userSchema.methods.matchesPassword = function (password) {
+userSchema.methods.matchesPassword = function (password: string) {
     return compare(password, this.password)
 }
 
-const User = model<UserDocument>('User', userSchema)
+const User = model<UserDocument, Model<UserDocument>>('User', userSchema)
 
 export default User

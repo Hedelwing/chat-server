@@ -6,6 +6,7 @@ import {
     DB_PASS,
     DB_HOST,
     DB_NAME,
+    FRONT_URI,
 } from './config'
 import { ApolloServer } from 'apollo-server-express'
 import http from 'http'
@@ -31,7 +32,7 @@ const start = async () => {
         app.disable('x-powered-by')
 
         const corsOptions = {
-            origin: "http://localhost:8080",
+            origin: FRONT_URI,
             credentials: true,
         }
 
@@ -41,9 +42,9 @@ const start = async () => {
             schemaDirectives,
             playground: true,
             context: async ({ req, connection }) =>
-                connection ? connection.context : { user: await validateToken(req?.headers.authorization.split(' ')[1]) },
+                connection ? connection.context : { user: await validateToken(req && req.headers!.authorization!.split(' ')[1]) },
             subscriptions: {
-                onConnect: async ({ token }: { token: string }) => {
+                onConnect: async ({ token }: any) => {
                     const user = await validateToken(token)
 
                     if (user) await User.updateOne({ _id: user }, { isOnline: true })

@@ -1,9 +1,9 @@
 import { SchemaDirectiveVisitor } from 'apollo-server-express'
-import { defaultFieldResolver } from 'graphql'
+import { defaultFieldResolver, GraphQLField } from 'graphql'
 import { ensureSignedOut } from '../utils/auth'
 
 class GuestDirective extends SchemaDirectiveVisitor {
-  visitFieldDefinition(field) {
+  visitFieldDefinition(field: GraphQLField<any, any>) {
     const { resolve = defaultFieldResolver } = field
 
     field.resolve = function (...args) {
